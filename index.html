@@ -1,0 +1,794 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Mrpack ➜ Zip Studio</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0d0f14; --panel: #12151c; --card: #1a1e2a; --card2: #232838; --border: #2b3144;
+    --accent: #6366f1; --accent-h: #4f52d9; --green: #22c55e; --red: #ef4444;
+    --amber: #f59e0b; --cyan: #22d3ee; --text: #e6e8ee; --muted: #8b93a7;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 14px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, Ubuntu, sans-serif;
+    display: flex; flex-direction: column; min-height: 100vh;
+  }
+  header {
+    background: var(--panel); height: 64px; display: flex; align-items: center;
+    padding: 0 24px; gap: 14px; flex-shrink: 0;
+  }
+  .logo { font-size: 22px; font-weight: 800; letter-spacing: .5px; }
+  .logo b { color: var(--accent); margin: 0 6px; }
+  .tag {
+    background: var(--card2); color: var(--accent); font-size: 11px; font-weight: 700;
+    padding: 5px 12px; border-radius: 8px;
+  }
+  main {
+    flex: 1; display: grid; grid-template-columns: 410px 1fr; gap: 16px;
+    padding: 18px 20px; min-height: 0;
+  }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .col { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px;
+  }
+  .cap { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .6px; margin-bottom: 6px; }
+
+  /* drop zone */
+  #zone {
+    background: var(--card); border: 2px solid var(--border); border-radius: 16px; height: 135px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    cursor: pointer; transition: border-color .15s, background .15s; text-align: center; padding: 0 12px;
+  }
+  #zone:hover, #zone.hot { border-color: var(--accent); background: var(--card2); }
+  #zIcon { font-size: 36px; line-height: 1.1; }
+  #zTitle { font-size: 15px; font-weight: 700; word-break: break-all; }
+  #zSub { font-size: 11px; color: var(--muted); }
+
+  /* info */
+  #pName { font-size: 16px; font-weight: 700; word-break: break-word; }
+  #pSum { font-size: 11px; color: var(--muted); margin: 2px 0 10px; word-break: break-word; }
+  .badges { display: flex; gap: 12px; margin-bottom: 10px; }
+  .badge {
+    flex: 1; background: var(--card2); border-radius: 10px; height: 34px; display: flex;
+    align-items: center; justify-content: center; font-weight: 700; font-size: 13px;
+    padding: 0 8px; text-align: center;
+  }
+  .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+  .tile { background: var(--card2); border-radius: 10px; padding: 8px 4px; text-align: center; min-width: 0; }
+  .tile small { display: block; font-size: 9px; font-weight: 700; color: var(--muted); }
+  .tile span { font-size: 12px; font-weight: 700; word-break: break-word; }
+
+  /* controls */
+  .seg { display: flex; background: var(--card2); border-radius: 8px; padding: 3px; gap: 3px; }
+  .seg button {
+    flex: 1; border: 0; background: transparent; color: var(--text); padding: 7px 4px;
+    border-radius: 6px; cursor: pointer; font: inherit; font-weight: 600;
+  }
+  .seg button:hover { background: var(--border); }
+  .seg button.on { background: var(--accent); }
+  .seg.disabled { opacity: .45; pointer-events: none; }
+  .hint { font-size: 11px; color: var(--muted); margin-top: 4px; min-height: 16px; }
+  .switches { display: flex; justify-content: space-between; margin: 12px 0; gap: 8px; flex-wrap: wrap; }
+  .switches label, .row label { display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 12px; }
+  input[type=checkbox], input[type=range] { accent-color: var(--accent); }
+  .row { display: flex; justify-content: space-between; align-items: center; font-size: 12px; }
+  #wVal { color: var(--accent); font-weight: 700; }
+  input[type=range] {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 6px; margin: 12px 0 4px;
+    background: var(--card2); border-radius: 3px; outline: none;
+  }
+  input[type=range]::-webkit-slider-runnable-track { height: 6px; background: var(--card2); border-radius: 3px; }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 16px; height: 16px; margin-top: -5px; border-radius: 50%;
+    background: var(--accent); border: 0; cursor: pointer;
+  }
+  input[type=range]::-moz-range-track { height: 6px; background: var(--card2); border-radius: 3px; }
+  input[type=range]::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: var(--accent); border: 0; cursor: pointer; }
+  .disabled-box { opacity: .45; pointer-events: none; }
+
+  .outRow { display: flex; gap: 8px; }
+  input[type=text] {
+    flex: 1; min-width: 0; background: var(--card2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 9px 10px; font: inherit;
+  }
+  input[type=text]:focus { outline: none; border-color: var(--accent); }
+
+  .actions { display: flex; gap: 8px; }
+  button.btn {
+    border: 0; border-radius: 12px; height: 54px; cursor: pointer; font: inherit; font-weight: 700;
+    color: var(--text); background: var(--card2); padding: 0 18px; transition: background .15s;
+  }
+  button.btn:hover:not(:disabled) { background: var(--border); }
+  button.btn:disabled { opacity: .5; cursor: not-allowed; }
+  #go { flex: 1; font-size: 16px; background: var(--accent); }
+  #go:hover:not(:disabled) { background: var(--accent-h); }
+  #cancel:hover:not(:disabled) { background: var(--red); }
+
+  #pct { font-size: 30px; font-weight: 800; }
+  .progTop { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; }
+  #stat { font-size: 12px; color: var(--muted); text-align: right; }
+  .bar { height: 14px; background: var(--card2); border-radius: 7px; overflow: hidden; margin-top: 6px; }
+  #fill { height: 100%; width: 0; background: var(--accent); border-radius: 7px; }
+
+  .logCard { flex: 1; display: flex; flex-direction: column; min-height: 220px; }
+  .logHead { display: flex; justify-content: space-between; align-items: center; }
+  .logHead button { background: none; border: 0; color: var(--muted); cursor: pointer; font-size: 11px; }
+  #log {
+    flex: 1; background: var(--bg); border-radius: 10px; padding: 10px; overflow: auto;
+    font: 12px/1.5 ui-monospace, Consolas, monospace; white-space: pre; min-height: 160px; max-height: 360px;
+  }
+  .ok { color: var(--green); } .err { color: var(--red); } .warn { color: var(--amber); }
+  .info { color: var(--cyan); } .dim { color: var(--muted); }
+
+  footer {
+    background: var(--panel); height: 34px; display: flex; align-items: center; gap: 8px;
+    padding: 0 20px; font-size: 12px; color: var(--muted); flex-shrink: 0;
+  }
+  #dot { font-size: 14px; }
+  @keyframes pulse { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+  #dot.pulse { animation: pulse 1s ease-in-out infinite; }
+  input[type=file] { display: none; }
+
+  /* modrinth search */
+  #searchPanel { display: none; }
+  .sRow { display: flex; gap: 8px; margin-bottom: 8px; }
+  select {
+    background: var(--card2); border: 1px solid var(--border); color: var(--text);
+    border-radius: 8px; padding: 8px 8px; font: inherit; min-width: 0;
+  }
+  select:focus { outline: none; border-color: var(--accent); }
+  button.mini {
+    border: 0; border-radius: 8px; background: var(--accent); color: #fff; font: inherit;
+    font-weight: 700; padding: 0 14px; cursor: pointer;
+  }
+  button.mini:hover:not(:disabled) { background: var(--accent-h); }
+  button.mini:disabled { opacity: .5; cursor: not-allowed; }
+  .filters { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+  .filters select { width: 100%; }
+  .sMeta { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 11px; color: var(--muted); }
+  .sMeta button { background: none; border: 0; color: var(--accent); cursor: pointer; font: inherit; font-size: 11px; font-weight: 700; }
+  #results { display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow: auto; padding-right: 2px; }
+  .hit {
+    display: flex; gap: 10px; align-items: center; background: var(--card2);
+    border: 2px solid transparent; border-radius: 12px; padding: 8px 10px; cursor: pointer;
+  }
+  .hit:hover { border-color: var(--border); }
+  .hit.sel { border-color: var(--accent); }
+  .hit .ico {
+    width: 44px; height: 44px; border-radius: 10px; background: var(--card); flex-shrink: 0;
+    object-fit: cover; display: flex; align-items: center; justify-content: center; font-size: 22px;
+  }
+  .hit .meta { min-width: 0; }
+  .hit .t { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .hit .d { font-size: 11px; color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .hit .a { font-size: 11px; color: var(--cyan); }
+  .empty { color: var(--muted); font-size: 12px; text-align: center; padding: 18px 6px; white-space: pre-line; }
+  #pick { display: none; margin-top: 10px; }
+  #pick .pn { font-weight: 700; margin-bottom: 6px; word-break: break-word; }
+  #pick .sRow { margin-bottom: 0; }
+  #ver { flex: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">MRPACK<b>➜</b>ZIP</div>
+  <div class="tag">STUDIO</div>
+</header>
+
+<main>
+  <!-- LEFT -->
+  <div class="col">
+    <div class="seg" id="segSrc">
+      <button class="on" data-v="file">📁 My file</button>
+      <button data-v="mr">🔎 Search Modrinth</button>
+    </div>
+
+    <div class="card" id="searchPanel">
+      <div class="sRow">
+        <input type="text" id="q" placeholder="Search modpacks on Modrinth…" spellcheck="false">
+        <button class="mini" id="qGo">Search</button>
+      </div>
+      <div class="filters">
+        <select id="fVer" title="Minecraft version"><option value="">Any Minecraft version</option></select>
+        <select id="fLoader" title="Mod loader"><option value="">Any mod loader</option></select>
+        <select id="fCat" title="Category"><option value="">Any category</option></select>
+        <select id="sort" title="Sort by">
+          <option value="relevance">Sort: relevance</option>
+          <option value="downloads">Sort: most downloads</option>
+          <option value="follows">Sort: most followed</option>
+          <option value="newest">Sort: newest</option>
+          <option value="updated">Sort: recently updated</option>
+        </select>
+      </div>
+      <div class="sMeta"><span id="resCount"></span><button id="resetF">Reset filters</button></div>
+      <div id="results"></div>
+      <div id="pick">
+        <div class="pn" id="pickName"></div>
+        <div class="sRow">
+          <select id="ver"></select>
+          <button class="mini" id="useBtn" style="height:36px">Use this modpack</button>
+        </div>
+      </div>
+    </div>
+
+    <div id="zone" tabindex="0">
+      <div id="zIcon">📦</div>
+      <div id="zTitle">Drop a .mrpack here</div>
+      <div id="zSub">or click to browse</div>
+    </div>
+    <input type="file" id="picker" accept=".mrpack,.zip">
+
+    <div class="card">
+      <div id="pName">No pack loaded</div>
+      <div id="pSum">Pack details will appear here.</div>
+      <div class="badges">
+        <div class="badge" id="bMc">Minecraft: —</div>
+        <div class="badge" id="bLoader">Loader: —</div>
+      </div>
+      <div class="tiles">
+        <div class="tile"><small>MINECRAFT</small><span id="tMc">—</span></div>
+        <div class="tile"><small>LOADER</small><span id="tLoader">—</span></div>
+        <div class="tile"><small>MODS</small><span id="tMods">—</span></div>
+        <div class="tile"><small>SIZE</small><span id="tSize">—</span></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div id="fullOpts">
+        <div class="cap">TARGET</div>
+        <div class="seg" id="segTarget">
+          <button class="on" data-v="client">Client</button>
+          <button data-v="server">Server</button>
+          <button data-v="both">Both</button>
+        </div>
+        <div class="switches">
+          <label><input type="checkbox" id="verify" checked> Verify hashes</label>
+          <label><input type="checkbox" id="overrides" checked> Include overrides</label>
+        </div>
+        <div class="row"><span>Parallel downloads</span><span id="wVal">8</span></div>
+        <input type="range" id="workers" min="1" max="16" value="8">
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="col">
+    <div class="card">
+      <div class="cap">OUTPUT ZIP NAME</div>
+      <div class="outRow"><input type="text" id="out" placeholder="modpack.zip" spellcheck="false"></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn" id="go">⚡&nbsp; CONVERT</button>
+      <button class="btn" id="cancel" disabled>Cancel</button>
+      <button class="btn" id="again" disabled title="Download the last zip again">⬇</button>
+    </div>
+
+    <div class="card">
+      <div class="progTop"><div id="pct">0%</div><div id="stat"></div></div>
+      <div class="bar"><div id="fill"></div></div>
+    </div>
+
+    <div class="card logCard">
+      <div class="logHead"><div class="cap">ACTIVITY</div><button id="clearLog">Clear</button></div>
+      <div id="log"></div>
+    </div>
+  </div>
+</main>
+
+<footer><span id="dot">●</span><span id="status">Ready. Drop a .mrpack to begin.</span></footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+const ALLOWED = new Set(["cdn.modrinth.com", "github.com", "raw.githubusercontent.com", "gitlab.com"]);
+const COLORS = { green: "var(--green)", red: "var(--red)", amber: "var(--amber)", accent: "var(--accent)", muted: "var(--muted)" };
+
+const state = { target: "client" };
+let file = null, packZip = null, index = null;
+let running = false, cancelled = false, abort = null, outManual = false;
+let stats = newStats(), disp = 0, lastBlob = null, lastName = "", sample = { t: 0, b: 0 }, speed = 0;
+
+function newStats() { return { done: 0, total: 0, bytes: 0, totalBytes: 0, dl: 0, zip: 0, start: performance.now() }; }
+
+/* ---------- helpers ---------- */
+function humanSize(n) {
+  const u = ["B", "KB", "MB", "GB"]; let i = 0;
+  while (n >= 1024 && i < 3) { n /= 1024; i++; }
+  return (i === 0 ? n.toFixed(0) : n.toFixed(1)) + " " + u[i];
+}
+function humanTime(s) { s = Math.max(0, Math.floor(s)); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+function safeRel(p) {
+  p = String(p).replace(/\\/g, "/");
+  if (p.startsWith("/") || /^[a-zA-Z]:/.test(p)) return null;
+  const parts = p.split("/").filter(x => x !== "" && x !== ".");
+  if (!parts.length || parts.includes("..")) return null;
+  return parts.join("/");
+}
+function loaderInfo(d) {
+  for (const [k, n] of [["fabric-loader", "Fabric"], ["quilt-loader", "Quilt"], ["forge", "Forge"], ["neoforge", "NeoForge"]])
+    if (d[k]) return [n, d[k]];
+  return ["Vanilla", ""];
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function setStatus(text, color) {
+  $("status").textContent = text;
+  $("status").style.color = COLORS[color || "muted"];
+  $("dot").style.color = COLORS[color || "muted"];
+}
+function log(cls, text) {
+  const el = $("log");
+  const t = new Date().toTimeString().slice(0, 8);
+  const line = document.createElement("div");
+  line.className = cls;
+  line.textContent = t + "  " + text;
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+/* ---------- segmented controls ---------- */
+function seg(el, key, cb) {
+  el.querySelectorAll("button").forEach(b => b.onclick = () => {
+    el.querySelectorAll("button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    state[key] = b.dataset.v;
+    if (cb) cb();
+  });
+}
+seg($("segTarget"), "target", () => autoOut());
+$("workers").oninput = e => $("wVal").textContent = e.target.value;
+$("out").addEventListener("input", () => outManual = true);
+$("clearLog").onclick = () => $("log").innerHTML = "";
+
+function autoOut(force) {
+  if (!file || (outManual && !force)) return;
+  if (force) outManual = false;
+  const base = file.name.replace(/\.(mrpack|zip)$/i, "");
+  $("out").value = base + (state.target === "server" ? "-server" : "") + ".zip";
+}
+
+/* ---------- loading a pack ---------- */
+$("zone").onclick = () => { if (!running) $("picker").click(); };
+$("zone").onkeydown = e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("zone").click(); } };
+$("picker").onchange = e => { if (e.target.files[0]) loadPack(e.target.files[0]); e.target.value = ""; };
+document.addEventListener("keydown", e => { if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "o") { e.preventDefault(); $("zone").click(); } });
+["dragenter", "dragover"].forEach(ev => window.addEventListener(ev, e => { e.preventDefault(); $("zone").classList.add("hot"); }));
+["dragleave", "drop"].forEach(ev => window.addEventListener(ev, e => { e.preventDefault(); if (ev === "drop" || e.target === document.documentElement) $("zone").classList.remove("hot"); }));
+window.addEventListener("drop", e => {
+  if (running) return;
+  const f = e.dataTransfer && e.dataTransfer.files[0];
+  if (f) loadPack(f);
+});
+
+async function loadPack(f) {
+  try {
+    const z = await JSZip.loadAsync(f);
+    const entry = z.file("modrinth.index.json");
+    if (!entry) throw new Error("Not a valid .mrpack (modrinth.index.json is missing)");
+    index = JSON.parse(await entry.async("string"));
+    packZip = z; file = f;
+  } catch (e) {
+    setStatus("Couldn't read pack: " + e.message, "red");
+    log("err", "Couldn't read " + f.name + ": " + e.message);
+    return;
+  }
+  const files = index.files || [], deps = index.dependencies || {};
+  const total = files.reduce((s, x) => s + (x.fileSize || 0), 0);
+  let nOver = 0;
+  packZip.forEach((p, o) => { if (!o.dir && /^(overrides|client-overrides|server-overrides)\//.test(p)) nOver++; });
+  const [ln, lv] = loaderInfo(deps), mc = deps.minecraft || "unknown";
+  $("pName").textContent = ((index.name || f.name) + " " + (index.versionId || "")).trim();
+  $("pSum").textContent = index.summary || "No description.";
+  $("bMc").textContent = "Minecraft: " + mc;
+  $("bLoader").textContent = ("Loader: " + ln + " " + lv).trim();
+  $("tMc").textContent = mc;
+  $("tLoader").textContent = (ln + " " + lv).trim();
+  $("tMods").textContent = files.length;
+  $("tSize").textContent = humanSize(total);
+  $("zIcon").textContent = "✅";
+  $("zTitle").textContent = f.name;
+  $("zSub").textContent = "click to choose a different pack";
+  autoOut(true);
+  stats = newStats(); disp = 0;
+  $("again").disabled = true;
+  setStatus(`Loaded ${index.name || f.name}: ${files.length} files, ${nOver} override files`, "green");
+  log("info", `Loaded ${f.name}`);
+  log("info", `Pack is for Minecraft ${mc} on ${(ln + " " + lv).trim()}`);
+}
+
+/* ---------- Modrinth search ---------- */
+const MR = "https://api.modrinth.com/v2";
+let searchToken = 0, selVersions = [], selHit = null;
+
+seg($("segSrc"), "src", () => showTab(state.src));
+function showTab(t) {
+  $("zone").style.display = t === "file" ? "" : "none";
+  $("searchPanel").style.display = t === "mr" ? "block" : "none";
+  if (t === "mr") {
+    loadTags();
+    if (!$("results").children.length) doSearch();
+  }
+}
+function fmtNum(n) { return n >= 1e6 ? (n / 1e6).toFixed(1) + "M" : n >= 1e3 ? Math.round(n / 1e3) + "k" : String(n); }
+function setResultsMsg(text) {
+  const d = document.createElement("div"); d.className = "empty"; d.textContent = text;
+  $("results").replaceChildren(d);
+}
+$("qGo").onclick = doSearch;
+$("q").addEventListener("keydown", e => { if (e.key === "Enter") doSearch(); });
+["fVer", "fLoader", "fCat", "sort"].forEach(id => $(id).onchange = doSearch);
+$("resetF").onclick = () => {
+  ["fVer", "fLoader", "fCat"].forEach(id => $(id).value = "");
+  $("sort").value = "relevance"; $("q").value = "";
+  doSearch();
+};
+
+const LOADER_NAMES = { fabric: "Fabric", forge: "Forge", neoforge: "NeoForge", quilt: "Quilt" };
+const titleCase = t => t.replace(/-/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+function fillSelect(sel, anyLabel, items) {
+  const prev = sel.value;
+  sel.replaceChildren(new Option(anyLabel, ""), ...items.map(([v, l]) => new Option(l, v)));
+  if (items.some(([v]) => v === prev)) sel.value = prev;
+}
+// sensible defaults so the filters work even before the lists load from Modrinth
+fillSelect($("fLoader"), "Any mod loader", Object.entries(LOADER_NAMES));
+fillSelect($("fCat"), "Any category", ["adventure", "challenging", "combat", "kitchen-sink", "lightweight",
+  "magic", "multiplayer", "optimization", "quests", "technology"].map(c => [c, titleCase(c)]));
+fillSelect($("fVer"), "Any Minecraft version", ["1.21.4", "1.21.1", "1.20.1", "1.19.2", "1.18.2", "1.16.5", "1.12.2", "1.8.9"].map(v => [v, v]));
+
+let tagsLoaded = false;
+async function loadTags() {
+  if (tagsLoaded) return;
+  tagsLoaded = true;
+  const get = async p => { const r = await fetch(MR + p); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); };
+  try {
+    const v = (await get("/tag/game_version")).filter(x => x.version_type === "release");
+    if (v.length) fillSelect($("fVer"), "Any Minecraft version", v.map(x => [x.version, x.version]));
+  } catch (e) { /* keep defaults */ }
+  try {
+    const l = (await get("/tag/loader")).filter(x => (x.supported_project_types || []).includes("modpack"));
+    if (l.length) fillSelect($("fLoader"), "Any mod loader", l.map(x => [x.name, LOADER_NAMES[x.name] || titleCase(x.name)]));
+  } catch (e) { /* keep defaults */ }
+  try {
+    const c = (await get("/tag/category")).filter(x => x.project_type === "modpack" && x.header === "categories");
+    if (c.length) fillSelect($("fCat"), "Any category", c.map(x => [x.name, titleCase(x.name)]));
+  } catch (e) { /* keep defaults */ }
+}
+
+async function doSearch() {
+  const token = ++searchToken;
+  const groups = [["project_type:modpack"]];
+  if ($("fVer").value) groups.push(["versions:" + $("fVer").value]);
+  if ($("fLoader").value) groups.push(["categories:" + $("fLoader").value]);
+  if ($("fCat").value) groups.push(["categories:" + $("fCat").value]);
+  const facets = encodeURIComponent(JSON.stringify(groups));
+  const url = `${MR}/search?query=${encodeURIComponent($("q").value.trim())}&facets=${facets}&limit=20&index=${$("sort").value}`;
+  setResultsMsg("Searching…");
+  $("resCount").textContent = "";
+  try {
+    const r = await fetch(url);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const j = await r.json();
+    if (token !== searchToken) return;
+    $("resCount").textContent = (j.total_hits || 0).toLocaleString() + " modpacks found";
+    renderHits(j.hits || []);
+  } catch (e) {
+    if (token === searchToken) {
+      let msg = "Couldn't reach Modrinth: " + e.message;
+      if (/Failed to fetch|NetworkError|Load failed/i.test(e.message))
+        msg += "\n\nIf you're viewing this inside Claude's preview, network requests are blocked there. Download the file and open it in your own browser.";
+      setResultsMsg(msg);
+    }
+  }
+}
+
+function renderHits(hits) {
+  if (!hits.length) { setResultsMsg("No modpacks found."); return; }
+  const frag = document.createDocumentFragment();
+  for (const h of hits) {
+    const row = document.createElement("div"); row.className = "hit";
+    let ico;
+    if (h.icon_url) { ico = document.createElement("img"); ico.src = h.icon_url; ico.alt = ""; ico.loading = "lazy"; }
+    else { ico = document.createElement("div"); ico.textContent = "📦"; }
+    ico.classList.add("ico");
+    const meta = document.createElement("div"); meta.className = "meta";
+    const t = document.createElement("div"); t.className = "t"; t.textContent = h.title;
+    const d = document.createElement("div"); d.className = "d"; d.textContent = h.description || "";
+    const a = document.createElement("div"); a.className = "a";
+    a.textContent = `by ${h.author} · ⬇ ${fmtNum(h.downloads || 0)}`;
+    meta.append(t, d, a);
+    row.append(ico, meta);
+    row.onclick = () => selectHit(h, row);
+    frag.appendChild(row);
+  }
+  $("results").replaceChildren(frag);
+}
+
+async function selectHit(h, row) {
+  document.querySelectorAll(".hit.sel").forEach(x => x.classList.remove("sel"));
+  row.classList.add("sel");
+  selHit = h; selVersions = [];
+  $("pick").style.display = "block";
+  $("pickName").textContent = h.title;
+  $("ver").replaceChildren(new Option("Loading versions…", ""));
+  $("useBtn").disabled = true;
+  try {
+    const r = await fetch(`${MR}/project/${h.project_id}/version`);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const vs = (await r.json()).filter(v => (v.files || []).some(f => /\.mrpack$/i.test(f.filename)));
+    if (selHit !== h) return;
+    selVersions = vs;
+    if (!vs.length) { $("ver").replaceChildren(new Option("No .mrpack versions found", "")); return; }
+    $("ver").replaceChildren(...vs.map((v, i) => {
+      const gv = (v.game_versions || []).slice(-2).join(", ");
+      return new Option(`${v.version_number}  ·  MC ${gv}  ·  ${(v.loaders || []).join("/")}`, i);
+    }));
+    $("useBtn").disabled = false;
+  } catch (e) {
+    $("ver").replaceChildren(new Option("Couldn't load versions: " + e.message, ""));
+  }
+}
+
+$("useBtn").onclick = async () => {
+  if (running) return;
+  const v = selVersions[$("ver").selectedIndex];
+  if (!v) return;
+  const f = v.files.find(x => x.primary && /\.mrpack$/i.test(x.filename)) || v.files.find(x => /\.mrpack$/i.test(x.filename));
+  try {
+    const u = new URL(f.url);
+    if (u.protocol !== "https:" || !ALLOWED.has(u.hostname)) throw new Error("untrusted download host");
+    $("useBtn").disabled = true;
+    log("info", `Downloading ${f.filename}…`);
+    const r = await fetch(f.url);
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    const total = +r.headers.get("content-length") || f.size || 0;
+    const reader = r.body.getReader(), chunks = [];
+    let got = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      chunks.push(value); got += value.length;
+      setStatus(`Downloading ${f.filename}… ${total ? Math.floor(got / total * 100) + "%" : humanSize(got)}`, "accent");
+    }
+    await loadPack(new File(chunks, f.filename, { type: "application/zip" }));
+  } catch (e) {
+    setStatus("Couldn't download the pack: " + e.message, "red");
+    log("err", "Pack download failed: " + e.message);
+  } finally {
+    $("useBtn").disabled = false;
+  }
+};
+
+/* ---------- converting ---------- */
+$("go").onclick = start;
+$("cancel").onclick = () => { cancelled = true; if (abort) abort.abort(); };
+$("again").onclick = () => { if (lastBlob) saveBlob(lastBlob, lastName); };
+
+function setRunning(on) {
+  running = on;
+  $("go").disabled = on;
+  $("go").innerHTML = on ? "Working…" : "⚡&nbsp; CONVERT";
+  $("cancel").disabled = !on;
+  $("dot").classList.toggle("pulse", on);
+  if (on) $("again").disabled = true;
+}
+
+function saveBlob(blob, name) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = name;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
+
+async function start() {
+  if (running) return;
+  if (!file) { setStatus("Pick a .mrpack first.", "red"); return; }
+  if (typeof JSZip === "undefined") { setStatus("JSZip failed to load. Check your internet connection and reload.", "red"); return; }
+  let name = $("out").value.trim() || "modpack.zip";
+  if (!/\.zip$/i.test(name)) name += ".zip";
+  $("out").value = name;
+
+  cancelled = false; abort = new AbortController();
+  stats = newStats(); disp = 0; speed = 0; sample = { t: performance.now(), b: 0 };
+  setRunning(true);
+  setStatus("Working…", "accent");
+  log("info", `Starting (target=${state.target})`);
+  const t0 = performance.now();
+  try {
+    const res = await full();
+    lastBlob = res.blob; lastName = name;
+    stats.dl = 1; stats.zip = 1;
+    saveBlob(res.blob, name);
+    $("again").disabled = false;
+    const took = humanTime((performance.now() - t0) / 1000);
+    if (res.failed.length) {
+      setStatus(`Done with ${res.failed.length} missing file(s) · ${humanSize(res.blob.size)} · ${took}`, "amber");
+      log("warn", `${res.failed.length} file(s) failed. See MISSING_FILES.txt inside the zip.`);
+    } else {
+      setStatus(`Done · ${humanSize(res.blob.size)} · ${took}`, "green");
+    }
+    log("ok", "Saved " + name);
+  } catch (e) {
+    if (e === "cancelled" || (e && e.name === "AbortError")) {
+      setStatus("Cancelled.", "amber"); log("warn", "Cancelled");
+      stats = newStats(); disp = 0;
+    } else {
+      setStatus("Failed: " + ((e && e.message) || e), "red");
+      log("err", "Fatal: " + ((e && e.message) || e));
+    }
+  } finally {
+    setRunning(false);
+  }
+}
+
+function wanted(f) {
+  const env = f.env || {};
+  if (state.target === "client" && env.client === "unsupported") return false;
+  if (state.target === "server" && env.server === "unsupported") return false;
+  return true;
+}
+
+async function full() {
+  const files = (index.files || []).filter(wanted);
+  const skipped = (index.files || []).length - files.length;
+  if (skipped) log("dim", `Skipped ${skipped} file(s) not needed for ${state.target}`);
+
+  const modPaths = new Set(files.map(f => safeRel(f.path || "")).filter(Boolean));
+  const over = new Map();
+  if ($("overrides").checked) {
+    const prefixes = ["overrides/"];
+    if (state.target !== "server") prefixes.push("client-overrides/");
+    if (state.target !== "client") prefixes.push("server-overrides/");
+    packZip.forEach((p, o) => {
+      if (o.dir) return;
+      for (const pre of prefixes) {
+        if (p.startsWith(pre)) {
+          const rel = safeRel(p.slice(pre.length));
+          if (rel === null) log("warn", "Blocked unsafe path: " + p);
+          else if (!modPaths.has(rel)) over.set(rel, o);
+        }
+      }
+    });
+  }
+
+  stats.total = files.length;
+  stats.totalBytes = files.reduce((s, f) => s + (f.fileSize || 0), 0);
+  log("info", `${files.length} files to download, ${over.size} override files to merge`);
+
+  const out = new JSZip();
+  for (const [rel, o] of over) {
+    if (cancelled) throw "cancelled";
+    out.file(rel, await o.async("uint8array"));
+  }
+  if (over.size) log("ok", `Merged ${over.size} override files`);
+
+  const failed = [];
+  let next = 0;
+  const workers = +$("workers").value;
+  async function worker() {
+    while (next < files.length && !cancelled) {
+      const f = files[next++];
+      const label = safeRel(f.path || "") || f.path || "?";
+      try {
+        const [rel, buf] = await fetchEntry(f);
+        out.file(rel, buf, { compression: rel.toLowerCase().endsWith(".jar") ? "STORE" : "DEFLATE" });
+        log("ok", `✓ ${rel}  (${humanSize(buf.length)})`);
+      } catch (e) {
+        if (e === "cancelled" || (e && e.name === "AbortError")) return;
+        failed.push(label);
+        log("err", `✗ ${label}  —  ${(e && e.message) || e}`);
+      }
+      stats.done++;
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(workers, Math.max(1, files.length)) }, worker));
+  if (cancelled) throw "cancelled";
+
+  if (failed.length) out.file("MISSING_FILES.txt", "These files could not be downloaded:\n\n" + failed.join("\n") + "\n");
+
+  log("info", "Zipping…");
+  $("cancel").disabled = true;
+  const blob = await out.generateAsync(
+    { type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 }, streamFiles: true },
+    m => { stats.zip = m.percent / 100; });
+  return { blob, failed };
+}
+
+async function fetchEntry(entry) {
+  const rel = safeRel(entry.path || "");
+  if (!rel) throw new Error("unsafe path blocked");
+  const urls = (entry.downloads || []).filter(u => {
+    try { const p = new URL(u); return p.protocol === "https:" && ALLOWED.has(p.hostname); } catch { return false; }
+  });
+  if (!urls.length) throw new Error("no trusted download URL (only https Modrinth/GitHub/GitLab allowed)");
+
+  let last = "unknown error";
+  for (let attempt = 0; attempt < 3; attempt++) {
+    for (const u of urls) {
+      if (cancelled) throw "cancelled";
+      try {
+        const r = await fetch(u, { signal: abort.signal });
+        if (!r.ok) throw new Error("HTTP " + r.status);
+        const reader = r.body.getReader(), chunks = [];
+        let got = 0;
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          chunks.push(value); got += value.length; stats.bytes += value.length;
+        }
+        const buf = new Uint8Array(got);
+        let off = 0;
+        for (const c of chunks) { buf.set(c, off); off += c.length; }
+        if ($("verify").checked) await verifyHash(buf, entry.hashes || {});
+        return [rel, buf];
+      } catch (e) {
+        if (cancelled || e === "cancelled" || (e && e.name === "AbortError")) throw "cancelled";
+        last = (e && e.message) || String(e);
+        if (/Failed to fetch|NetworkError|Load failed/i.test(last)) last += " (blocked by the browser, GitHub/GitLab links often fail CORS)";
+      }
+    }
+    await sleep(800 * (attempt + 1));
+  }
+  throw new Error(last);
+}
+
+async function verifyHash(buf, h) {
+  if (!(window.crypto && crypto.subtle)) return;
+  const hex = a => [...new Uint8Array(a)].map(b => b.toString(16).padStart(2, "0")).join("");
+  if (h.sha512) {
+    if (hex(await crypto.subtle.digest("SHA-512", buf)) !== h.sha512.toLowerCase()) throw new Error("sha512 mismatch");
+  } else if (h.sha1) {
+    if (hex(await crypto.subtle.digest("SHA-1", buf)) !== h.sha1.toLowerCase()) throw new Error("sha1 mismatch");
+  }
+}
+
+/* ---------- progress rendering ---------- */
+function frac() {
+  let dl = stats.totalBytes > 0 ? Math.min(1, stats.bytes / stats.totalBytes) : (stats.total ? stats.done / stats.total : 0);
+  return 0.85 * Math.min(dl, 1) + 0.15 * stats.zip;
+}
+function render() {
+  const now = performance.now();
+  let target = running || stats.zip >= 1 ? frac() : 0;
+  if (!running && stats.zip >= 1) target = 1;
+  disp += (target - disp) * 0.2;
+  if (Math.abs(target - disp) < 0.001) disp = target;
+  const shown = Math.min(1, Math.max(0, disp));
+  $("fill").style.width = (shown * 100) + "%";
+  $("fill").style.background = (!running && shown >= 1) ? "var(--green)" : "var(--accent)";
+  $("pct").textContent = Math.floor(shown * 100) + "%";
+
+  if (running) {
+    if (now - sample.t >= 600) {
+      const inst = (stats.bytes - sample.b) / ((now - sample.t) / 1000);
+      speed = speed === 0 ? inst : speed * 0.6 + inst * 0.4;
+      sample = { t: now, b: stats.bytes };
+    }
+    const elapsed = (now - stats.start) / 1000;
+    const eta = target > 0.02 ? (1 - target) / target * elapsed : null;
+    const parts = [];
+    if (stats.total) parts.push(`${stats.done}/${stats.total} files`);
+    parts.push(humanSize(speed) + "/s");
+    parts.push(eta !== null ? "ETA " + humanTime(eta) : "ETA …");
+    $("stat").textContent = parts.join("   ·   ");
+  } else if (stats.total && shown >= 1) {
+    $("stat").textContent = `${stats.done}/${stats.total} files`;
+  } else if (!stats.total) {
+    $("stat").textContent = "";
+  }
+  requestAnimationFrame(render);
+}
+render();
+</script>
+</body>
+</html>
